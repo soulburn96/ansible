@@ -4,19 +4,48 @@
   become: true
   pre_tasks:
 
-  - name: install updates (CentOs)
+  - name: update repo cache (CentOs)
     tags: always
     dnf:
-      update_only: yes
       update_cache: yes
+    changed_when: false  
     when: ansible_distribution == "CentOS"
 
-  - name: install updates (Ubuntu)
+  - name: update repo cache (Ubuntu)
     tags: always
     apt:
-      upgrade: dist
       update_cache: yes
+    changed_when: false
     when: ansible_distribution == "Ubuntu"
+
+- hosts: all
+  become: true
+  tasks:
+
+  - name: add sshkey for simone
+    tags: always
+    authorized_key:
+      user: simone
+      key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFV/s3OdDQv4JmwkdETrE/qXxbH/Jx1JbMXol6BTq/t2 ansible"
+
+- hosts: workstations
+  become: true
+  tasks:
+
+  - name: install unzip
+    package:
+      name: unzip
+
+  - name: install terraform
+    unarchive:
+      src: https://releases.hashicorp.com/terraform/0.12.28/terraform_0.12.28_linux_amd64.zip
+      dest: /usr/local/bin
+      remote_src: yes
+      mode: 0755
+      owner: root
+      group: root
+
+
 
 - hosts: web_servers
   become: true
@@ -48,6 +77,23 @@
       owner: root
       group: root
       mode: 0644
+
+  - name: start apache2
+    tags: apache,apache2,ubuntu
+    service:
+      name: apache2
+      state: stopped
+      enabled: no
+    when: ansible_distribution == "Ubuntu" 
+    register: apache2var
+
+  - name: restart apache2
+    tags: apache,apache2,ubuntu
+    service:
+      name: apache2
+      state: restarted
+      enabled: yes
+    when: apache2var.changed
 
 - hosts: db_servers
   become: true
